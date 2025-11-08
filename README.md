@@ -14,3 +14,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+# SiMontra
+SiMontra is an Android app built with Kotlin for monitoring and tracking student internships (PKL). It features location-based attendance, real-time tracking, daily activity reports with photos, and supervisor evaluations to make internship management easier and more transparent.
+
