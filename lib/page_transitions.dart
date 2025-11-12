@@ -9,7 +9,7 @@ class SlidePageRoute extends PageRouteBuilder {
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             const begin = Offset(1.0, 0.0);
             const end = Offset.zero;
-            const curve = Curves.easeInOutCubic;
+            const curve = Curves.easeOutCubic;
 
             var tween = Tween(begin: begin, end: end).chain(
               CurveTween(curve: curve),
@@ -23,7 +23,8 @@ class SlidePageRoute extends PageRouteBuilder {
               ),
             );
           },
-          transitionDuration: const Duration(milliseconds: 400),
+          transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(milliseconds: 250),
         );
 }
 
@@ -39,7 +40,7 @@ class FadePageRoute extends PageRouteBuilder {
               child: child,
             );
           },
-          transitionDuration: const Duration(milliseconds: 300),
+          transitionDuration: const Duration(milliseconds: 250),
         );
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kons/signup.dart';
 import 'package:kons/page_transitions.dart';
+import 'package:kons/home.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -190,8 +191,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               onPressed: () {
                                 if (_formKey.currentState!.validate()) {
-                                  // Handle login
-                                  // You can navigate to home screen here
+                                  // Navigate to home screen
+                                  Navigator.of(context).pushAndRemoveUntil(
+                                    SlidePageRoute(page: const HomeScreen()),
+                                    (route) => false,
+                                  );
                                 }
                               },
                               child: const Text(
