@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:kons/Login.dart';
-import 'package:kons/page_transitions.dart';
+import 'package:kons/screens/auth/login_screen.dart';
+import 'package:kons/core/navigation/page_transitions.dart';
 
 class SignUpSuccessModal extends StatelessWidget {
-  const SignUpSuccessModal({super.key});
+  final String? message;
+  
+  const SignUpSuccessModal({super.key, this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +51,17 @@ class SignUpSuccessModal extends StatelessWidget {
                 color: Colors.black,
               ),
             ),
+            if (message != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                message!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
             const SizedBox(height: 30),
             // Continue Button
             Container(

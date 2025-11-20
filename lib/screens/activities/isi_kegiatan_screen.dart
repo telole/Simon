@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:kons/riwayat_kegiatan.dart';
-import 'package:kons/success_popup.dart';
-import 'package:kons/home.dart';
-import 'package:kons/page_transitions.dart';
+import 'package:kons/screens/activities/riwayat_kegiatan_screen.dart';
+import 'package:kons/core/widgets/success_popup.dart';
+import 'package:kons/core/navigation/page_transitions.dart';
+import 'package:kons/core/widgets/main_bottom_nav.dart';
+import 'package:kons/core/services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class IsiKegiatanScreen extends StatefulWidget {
   const IsiKegiatanScreen({super.key});
@@ -14,33 +16,99 @@ class IsiKegiatanScreen extends StatefulWidget {
 class _IsiKegiatanScreenState extends State<IsiKegiatanScreen> {
   final _formKey = GlobalKey<FormState>();
   final _tanggalController = TextEditingController();
-  final _jamController = TextEditingController();
+  final _jamMulaiController = TextEditingController();
+  final _jamSelesaiController = TextEditingController();
   final _kegiatanController = TextEditingController();
+  final _catatanController = TextEditingController();
   String _selectedKegiatan = 'UI/UX Design';
+  final ApiService _apiService = ApiService();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tanggalController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  }
 
   @override
   void dispose() {
     _tanggalController.dispose();
-    _jamController.dispose();
+    _jamMulaiController.dispose();
+    _jamSelesaiController.dispose();
     _kegiatanController.dispose();
+    _catatanController.dispose();
     super.dispose();
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => SuccessPopup(
-        title: 'Kegiatan berhasil terkirim',
-        onContinue: () {
-          Navigator.of(context).pop();
-          Navigator.of(context).pushReplacement(
-            SlidePageRoute(page: const RiwayatKegiatanScreen()),
-          );
-        },
-      ),
-    );
+  Future<void> _submitActivity() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Validate time format (HH:mm)
+    final timeRegex = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
+    if (!timeRegex.hasMatch(_jamMulaiController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format jam mulai harus HH:mm (contoh: 08:00)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (!timeRegex.hasMatch(_jamSelesaiController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format jam selesai harus HH:mm (contoh: 16:00)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _apiService.createActivity({
+        'tanggal': _tanggalController.text.trim(),
+        'jam_mulai': _jamMulaiController.text.trim(),
+        'jam_selesai': _jamSelesaiController.text.trim(),
+        'kegiatan': _kegiatanController.text.trim(),
+        'catatan': _catatanController.text.trim().isEmpty ? null : _catatanController.text.trim(),
+      });
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black.withOpacity(0.5),
+          builder: (context) => SuccessPopup(
+            title: 'Kegiatan berhasil terkirim',
+            onContinue: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushReplacement(
+                SlidePageRoute(page: const RiwayatKegiatanScreen()),
+              );
+            },
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengirim kegiatan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -167,24 +235,71 @@ class _IsiKegiatanScreenState extends State<IsiKegiatanScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   
-                                  // Jam Field
+                                  // Jam Mulai Field
                                   TextFormField(
-                                    controller: _jamController,
+                                    controller: _jamMulaiController,
                                     decoration: InputDecoration(
-                                      labelText: 'Jam',
+                                      labelText: 'Jam Mulai (HH:mm)',
                                       prefixIcon: const Icon(Icons.access_time),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       filled: true,
                                       fillColor: Colors.grey[50],
+                                      hintText: '08:00',
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Please enter jam';
+                                        return 'Please enter jam mulai';
+                                      }
+                                      final timeRegex = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
+                                      if (!timeRegex.hasMatch(value)) {
+                                        return 'Format harus HH:mm (contoh: 08:00)';
                                       }
                                       return null;
                                     },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Jam Selesai Field
+                                  TextFormField(
+                                    controller: _jamSelesaiController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Jam Selesai (HH:mm)',
+                                      prefixIcon: const Icon(Icons.access_time),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[50],
+                                      hintText: '16:00',
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter jam selesai';
+                                      }
+                                      final timeRegex = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
+                                      if (!timeRegex.hasMatch(value)) {
+                                        return 'Format harus HH:mm (contoh: 16:00)';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Catatan Field
+                                  TextFormField(
+                                    controller: _catatanController,
+                                    maxLines: 3,
+                                    decoration: InputDecoration(
+                                      labelText: 'Catatan (Optional)',
+                                      prefixIcon: const Icon(Icons.note),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[50],
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
                                   
@@ -254,19 +369,24 @@ class _IsiKegiatanScreenState extends State<IsiKegiatanScreen> {
                                         padding: const EdgeInsets.symmetric(vertical: 16),
                                         elevation: 0,
                                       ),
-                                      onPressed: () {
-                                        if (_formKey.currentState!.validate()) {
-                                          _showSuccessDialog();
-                                        }
-                                      },
-                                      child: const Text(
-                                        'Kirim',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                      onPressed: _isLoading ? null : _submitActivity,
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              height: 20,
+                                              width: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Kirim',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ],
@@ -283,63 +403,7 @@ class _IsiKegiatanScreenState extends State<IsiKegiatanScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: 3,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).pushAndRemoveUntil(
-              SlidePageRoute(page: const HomeScreen()),
-              (route) => false,
-            );
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF6A5AE0),
-        unselectedItemColor: Colors.grey[600],
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        iconSize: 24,
-        elevation: 0,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.checklist_rounded),
-            label: 'Presensi',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description_rounded),
-            label: 'Laporan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_rounded),
-            label: 'Kegiatan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message_rounded),
-            label: 'Pesan',
-          ),
-        ],
-      ),
+      bottomNavigationBar: buildMainBottomNav(context, currentIndex: 3),
     );
   }
 }

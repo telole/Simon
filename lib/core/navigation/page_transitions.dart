@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-class SlidePageRoute extends PageRouteBuilder {
-  final Widget page;
-
-  SlidePageRoute({required this.page})
+class SlidePageRoute<T> extends PageRouteBuilder<T> {
+  SlidePageRoute({required Widget page})
       : super(
           pageBuilder: (context, animation, secondaryAnimation) => page,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -11,7 +9,7 @@ class SlidePageRoute extends PageRouteBuilder {
             const end = Offset.zero;
             const curve = Curves.easeOutCubic;
 
-            final tween = Tween(begin: begin, end: end).chain(
+            final tween = Tween<Offset>(begin: begin, end: end).chain(
               CurveTween(curve: curve),
             );
 
@@ -25,10 +23,8 @@ class SlidePageRoute extends PageRouteBuilder {
         );
 }
 
-class FadePageRoute extends PageRouteBuilder {
-  final Widget page;
-
-  FadePageRoute({required this.page})
+class FadePageRoute<T> extends PageRouteBuilder<T> {
+  FadePageRoute({required Widget page})
       : super(
           pageBuilder: (context, animation, secondaryAnimation) => page,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {

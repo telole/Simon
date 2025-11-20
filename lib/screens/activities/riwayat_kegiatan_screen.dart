@@ -1,44 +1,82 @@
 import 'package:flutter/material.dart';
-import 'package:kons/home.dart';
-import 'package:kons/isi_kegiatan.dart';
-import 'package:kons/edit_kegiatan.dart';
-import 'package:kons/page_transitions.dart';
+import 'package:kons/screens/activities/isi_kegiatan_screen.dart';
+import 'package:kons/screens/activities/edit_kegiatan_screen.dart';
+import 'package:kons/core/navigation/page_transitions.dart';
+import 'package:kons/core/widgets/main_bottom_nav.dart';
+import 'package:kons/core/services/api_service.dart';
+import 'package:kons/core/models/activity.dart';
 
-class RiwayatKegiatanScreen extends StatelessWidget {
+class RiwayatKegiatanScreen extends StatefulWidget {
   const RiwayatKegiatanScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> kegiatanList = [
-      {
-        'tanggal': '13/09/2025',
-        'jam': '08:00 - 15:00',
-        'kegiatan': 'UI/UX Design',
-      },
-      {
-        'tanggal': '12/09/2025',
-        'jam': '08:00 - 15:00',
-        'kegiatan': 'Desain grafis',
-      },
-      {
-        'tanggal': '11/09/2025',
-        'jam': '08:00 - 15:00',
-        'kegiatan': 'Maintenance server',
-      },
-      {
-        'tanggal': '10/09/2025',
-        'jam': '08:00 - 15:00',
-        'kegiatan': 'Pasang Wifi',
-      },
-    ];
+  State<RiwayatKegiatanScreen> createState() => _RiwayatKegiatanScreenState();
+}
 
+class _RiwayatKegiatanScreenState extends State<RiwayatKegiatanScreen> {
+  final ApiService _apiService = ApiService();
+  List<Activity> _kegiatanList = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActivities();
+  }
+
+  Future<void> _loadActivities() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await _apiService.getActivities();
+      if (response['ok'] == true && response['activities'] != null) {
+        setState(() {
+          _kegiatanList = (response['activities'] as List)
+              .map((e) => Activity.fromJson(e))
+              .toList();
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _deleteActivity(String id) async {
+    try {
+      await _apiService.deleteActivity(id);
+      _loadActivities();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus kegiatan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        // <CHANGE> modern gradient with subtle navy and slate colors
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF6A5AE0), Color(0xFF8C9EFF)],
+            colors: [Color(0xFF2C3E50), Color(0xFF34495E)],
           ),
         ),
         child: SafeArea(
@@ -46,11 +84,11 @@ class RiwayatKegiatanScreen extends StatelessWidget {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 22),
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       onPressed: () => Navigator.of(context).pop(),
@@ -64,16 +102,18 @@ class RiwayatKegiatanScreen extends StatelessWidget {
                             'Kegiatan',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.5,
                             ),
                           ),
-                          SizedBox(height: 6),
+                          SizedBox(height: 8),
                           Text(
-                            'Ini adalah semua jurnal kegiatan selama PKL anda.',
+                            'Riwayat jurnal kegiatan PKL Anda',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFFBDC3C7),
                               fontSize: 14,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -87,49 +127,44 @@ class RiwayatKegiatanScreen extends StatelessWidget {
               Expanded(
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40),
+                    topLeft: Radius.circular(32),
+                    topRight: Radius.circular(32),
                   ),
                   child: Container(
-                    color: Colors.white,
+                    color: const Color(0xFFF8F9FA),
                     child: Column(
                       children: [
-                        // Add Button
+                        // Add Button - <CHANGE> subtle teal accent instead of gradient
                         Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Container(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                          child: SizedBox(
                             width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6A5AE0), Color(0xFF8C9EFF)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
+                                backgroundColor: const Color(0xFF1ABC9C),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
                               ),
                               onPressed: () {
                                 Navigator.of(context).push(
                                   SlidePageRoute(page: const IsiKegiatanScreen()),
-                                );
+                                ).then((_) => _loadActivities());
                               },
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add, color: Colors.white),
+                                  Icon(Icons.add_rounded, size: 20),
                                   SizedBox(width: 8),
                                   Text(
                                     'Tambah Kegiatan',
                                     style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.3,
                                     ),
                                   ),
                                 ],
@@ -137,139 +172,157 @@ class RiwayatKegiatanScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        
+
                         // List
                         Expanded(
-                          child: ListView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: kegiatanList.length,
-                            itemBuilder: (context, index) {
-                              final kegiatan = kegiatanList[index];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                padding: const EdgeInsets.all(18),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.grey.withOpacity(0.08),
-                                      spreadRadius: 1,
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Header tab
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFE3F2FD),
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(12),
-                                          topRight: Radius.circular(12),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Kegiatan hari ini',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              _buildInfoRow(Icons.calendar_today, 'Tanggal', kegiatan['tanggal']),
-                                              const SizedBox(height: 10),
-                                              _buildInfoRow(Icons.access_time, 'Jam', kegiatan['jam']),
-                                              const SizedBox(height: 10),
-                                              _buildInfoRow(Icons.edit, 'Kegiatan', kegiatan['kegiatan']),
-                                            ],
+                          child: _isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : _error != null
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                                          const SizedBox(height: 16),
+                                          ElevatedButton(
+                                            onPressed: _loadActivities,
+                                            child: const Text('Retry'),
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          children: [
-                                            const Icon(Icons.checklist, size: 50, color: Colors.grey),
-                                            const SizedBox(height: 8),
-                                            // Edit Button
-                                            Container(
-                                              width: 60,
+                                        ],
+                                      ),
+                                    )
+                                  : _kegiatanList.isEmpty
+                                      ? const Center(
+                                          child: Text('Belum ada kegiatan', style: TextStyle(color: Colors.grey)),
+                                        )
+                                      : ListView.builder(
+                                          physics: const BouncingScrollPhysics(),
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                          itemCount: _kegiatanList.length,
+                                          itemBuilder: (context, index) {
+                                            final kegiatan = _kegiatanList[index];
+                                            return Container(
+                                              margin: const EdgeInsets.only(bottom: 12),
                                               decoration: BoxDecoration(
-                                                color: Colors.orange,
-                                                borderRadius: BorderRadius.circular(8),
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(12),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withOpacity(0.04),
+                                                    spreadRadius: 0,
+                                                    blurRadius: 12,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
                                               ),
-                                              child: ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.orange,
-                                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                                  elevation: 0,
-                                                ),
-                                                onPressed: () {
-                                                  Navigator.of(context).push(
-                                                    SlidePageRoute(
-                                                      page: EditKegiatanScreen(
-                                                        kegiatan: kegiatan,
-                                                      ),
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: InkWell(
+                                                  onTap: () {},
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(16),
+                                                    child: Row(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Container(
+                                                          padding: const EdgeInsets.all(10),
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(0xFFEBF5FB),
+                                                            borderRadius: BorderRadius.circular(8),
+                                                          ),
+                                                          child: const Icon(
+                                                            Icons.calendar_today_rounded,
+                                                            size: 20,
+                                                            color: Color(0xFF1ABC9C),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 14),
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Text(
+                                                                kegiatan.kegiatan,
+                                                                style: const TextStyle(
+                                                                  fontSize: 15,
+                                                                  fontWeight: FontWeight.w600,
+                                                                  color: Color(0xFF2C3E50),
+                                                                  letterSpacing: -0.2,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(height: 6),
+                                                              Row(
+                                                                children: [
+                                                                  _buildDetailChip(
+                                                                    Icons.event,
+                                                                    kegiatan.formattedTanggal,
+                                                                  ),
+                                                                  const SizedBox(width: 12),
+                                                                  _buildDetailChip(
+                                                                    Icons.schedule,
+                                                                    kegiatan.jamRange,
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Column(
+                                                          children: [
+                                                            _buildActionButton(
+                                                              Icons.edit_rounded,
+                                                              const Color(0xFF1ABC9C),
+                                                              () {
+                                                                Navigator.of(context).push(
+                                                                  SlidePageRoute(
+                                                                    page: EditKegiatanScreen(
+                                                                      kegiatan: kegiatan,
+                                                                    ),
+                                                                  ),
+                                                                ).then((_) => _loadActivities());
+                                                              },
+                                                            ),
+                                                            const SizedBox(height: 8),
+                                                            _buildActionButton(
+                                                              Icons.delete_outline_rounded,
+                                                              const Color(0xFF95A5A6),
+                                                              () {
+                                                                showDialog(
+                                                                  context: context,
+                                                                  builder: (context) => AlertDialog(
+                                                                    title: const Text('Hapus Kegiatan'),
+                                                                    content: const Text('Apakah anda yakin ingin menghapus kegiatan ini?'),
+                                                                    actions: [
+                                                                      TextButton(
+                                                                        onPressed: () => Navigator.of(context).pop(),
+                                                                        child: const Text('Batal'),
+                                                                      ),
+                                                                      ElevatedButton(
+                                                                        style: ElevatedButton.styleFrom(
+                                                                          backgroundColor: Colors.red,
+                                                                        ),
+                                                                        onPressed: () {
+                                                                          Navigator.of(context).pop();
+                                                                          _deleteActivity(kegiatan.id);
+                                                                        },
+                                                                        child: const Text('Hapus'),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                );
+                                                              },
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
                                                     ),
-                                                  );
-                                                },
-                                                child: const Text(
-                                                  'Edit',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            // Hapus Button
-                                            Container(
-                                              width: 60,
-                                              decoration: BoxDecoration(
-                                                color: Colors.red,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.red,
-                                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                                  elevation: 0,
-                                                ),
-                                                onPressed: () {
-                                                  // Handle delete
-                                                },
-                                                child: const Text(
-                                                  'Hapus',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                                            );
+                                          },
                           ),
                         ),
                       ],
@@ -281,83 +334,50 @@ class RiwayatKegiatanScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(context),
+      bottomNavigationBar: buildMainBottomNav(context, currentIndex: 3),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildDetailChip(IconData icon, String text) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: Colors.black87),
-        const SizedBox(width: 6),
+        Icon(icon, size: 14, color: const Color(0xFF7F8C8D)),
+        const SizedBox(width: 4),
         Text(
-          '$label : ',
-          style: const TextStyle(fontSize: 14, color: Colors.black87),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+          text,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF7F8C8D),
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildBottomNavBar(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+  Widget _buildActionButton(
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: Material(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Icon(
+            icon,
+            size: 16,
+            color: color,
           ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: 3,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).pushAndRemoveUntil(
-              SlidePageRoute(page: const HomeScreen()),
-              (route) => false,
-            );
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF6A5AE0),
-        unselectedItemColor: Colors.grey[600],
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        iconSize: 24,
-        elevation: 0,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.checklist_rounded),
-            label: 'Presensi',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description_rounded),
-            label: 'Laporan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_rounded),
-            label: 'Kegiatan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message_rounded),
-            label: 'Pesan',
-          ),
-        ],
+        ),
       ),
     );
   }
-}
 
+}

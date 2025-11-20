@@ -1,36 +1,54 @@
 import 'package:flutter/material.dart';
-import 'package:kons/home.dart';
-import 'package:kons/page_transitions.dart';
+import 'package:kons/core/services/api_service.dart';
+import 'package:kons/core/models/attendance.dart';
 
-class RiwayatPresensiScreen extends StatelessWidget {
+class RiwayatPresensiScreen extends StatefulWidget {
   const RiwayatPresensiScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> presensiList = [
-      {
-        'nama': 'Dheva',
-        'tanggal': '13/09/2025',
-        'masuk': '08:00',
-        'pulang': '15:00',
-        'status': 'Masuk',
-      },
-      {
-        'nama': 'Dheva',
-        'tanggal': '12/09/2025',
-        'masuk': '08:00',
-        'pulang': '15:00',
-        'status': 'Masuk',
-      },
-      {
-        'nama': 'Dheva',
-        'tanggal': '11/09/2025',
-        'masuk': '-',
-        'pulang': '-',
-        'status': 'Izin',
-      },
-    ];
+  State<RiwayatPresensiScreen> createState() => _RiwayatPresensiScreenState();
+}
 
+class _RiwayatPresensiScreenState extends State<RiwayatPresensiScreen> {
+  final ApiService _apiService = ApiService();
+  List<Attendance> _presensiList = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAttendance();
+  }
+
+  Future<void> _loadAttendance() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await _apiService.getAttendance();
+      if (response['ok'] == true && response['attendance'] != null) {
+        setState(() {
+          _presensiList = (response['attendance'] as List)
+              .map((e) => Attendance.fromJson(e))
+              .toList();
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -93,13 +111,33 @@ class RiwayatPresensiScreen extends StatelessWidget {
                   ),
                   child: Container(
                     color: Colors.white,
-                    child: ListView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.all(20),
-                      itemCount: presensiList.length,
-                      itemBuilder: (context, index) {
-                        final presensi = presensiList[index];
-                        return Container(
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _error != null
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: _loadAttendance,
+                                      child: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _presensiList.isEmpty
+                                ? const Center(
+                                    child: Text('Belum ada presensi', style: TextStyle(color: Colors.grey)),
+                                  )
+                                : ListView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.all(20),
+                                    itemCount: _presensiList.length,
+                                    itemBuilder: (context, index) {
+                                      final presensi = _presensiList[index];
+                                      return Container(
                           margin: const EdgeInsets.only(bottom: 16),
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
@@ -120,13 +158,13 @@ class RiwayatPresensiScreen extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildInfoRow(Icons.person, 'Nama', presensi['nama']),
+                                    _buildInfoRow(Icons.person, 'Nama', '-'),
                                     const SizedBox(height: 10),
-                                    _buildInfoRow(Icons.calendar_today, 'Tanggal', presensi['tanggal']),
+                                    _buildInfoRow(Icons.calendar_today, 'Tanggal', presensi.formattedTanggal),
                                     const SizedBox(height: 10),
-                                    _buildInfoRow(Icons.access_time, 'Masuk', presensi['masuk']),
+                                    _buildInfoRow(Icons.access_time, 'Masuk', presensi.formattedMasuk),
                                     const SizedBox(height: 10),
-                                    _buildInfoRow(Icons.access_time, 'Pulang', presensi['pulang']),
+                                    _buildInfoRow(Icons.access_time, 'Pulang', presensi.formattedPulang),
                                     const SizedBox(height: 10),
                                     Row(
                                       children: [
@@ -139,15 +177,15 @@ class RiwayatPresensiScreen extends StatelessWidget {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: presensi['status'] == 'Masuk' 
+                                            color: presensi.status == 'masuk' 
                                                 ? Colors.green[50] 
                                                 : Colors.orange[50],
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
-                                            presensi['status'],
+                                            presensi.status.toUpperCase(),
                                             style: TextStyle(
-                                              color: presensi['status'] == 'Masuk' 
+                                              color: presensi.status == 'masuk' 
                                                   ? Colors.green 
                                                   : Colors.orange,
                                               fontWeight: FontWeight.bold,

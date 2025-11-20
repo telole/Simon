@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kons/home.dart';
-import 'package:kons/success_popup.dart';
-import 'package:kons/page_transitions.dart';
-import 'package:kons/riwayat_kegiatan.dart';
+import 'package:kons/core/widgets/success_popup.dart';
+import 'package:kons/core/widgets/main_bottom_nav.dart';
+import 'package:kons/core/services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class PresensiScreen extends StatefulWidget {
   const PresensiScreen({super.key});
@@ -13,6 +13,8 @@ class PresensiScreen extends StatefulWidget {
 
 class _PresensiScreenState extends State<PresensiScreen> {
   String _selectedStatus = 'Masuk';
+  final ApiService _apiService = ApiService();
+  bool _isLoading = false;
 
   void _showConfirmDialog(String type) {
     showDialog(
@@ -87,20 +89,74 @@ class _PresensiScreenState extends State<PresensiScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.of(context).pop();
-                    // Show success popup
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      barrierColor: Colors.black.withOpacity(0.5),
-                      builder: (context) => SuccessPopup(
-                        title: 'Presensi berhasil terkirim',
-                        onContinue: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    );
+                    setState(() {
+                      _isLoading = true;
+                    });
+                    
+                    try {
+                      final now = DateTime.now();
+                      final today = DateFormat('yyyy-MM-dd').format(now);
+                      final status = type == 'Masuk' ? 'masuk' : 'pulang';
+                      final timestamp = now.toUtc().toIso8601String();
+                      
+                      final response = await _apiService.createAttendance({
+                        'tanggal': today,
+                        'status': status,
+                        'timestamp': timestamp,
+                      });
+                      
+                      if (mounted) {
+                        // Check if response is successful
+                        // Response should have 'ok' field or 'attendance' field
+                        if (response['ok'] == true || response['attendance'] != null) {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            barrierColor: Colors.black.withOpacity(0.5),
+                            builder: (context) => SuccessPopup(
+                              title: 'Presensi berhasil terkirim',
+                              onContinue: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          );
+                        } else {
+                          throw Exception(response['message'] ?? 'Gagal mengirim presensi');
+                        }
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        // Show detailed error message
+                        String errorMessage = 'Gagal mengirim presensi';
+                        if (e.toString().contains('FormatException')) {
+                          errorMessage = 'Format data tidak valid. Silakan coba lagi.';
+                        } else if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
+                          errorMessage = 'Sesi Anda telah berakhir. Silakan login kembali.';
+                        } else if (e.toString().contains('400') || e.toString().contains('Bad Request')) {
+                          errorMessage = 'Data tidak valid. Pastikan semua field terisi dengan benar.';
+                        } else if (e.toString().contains('500') || e.toString().contains('Internal Server')) {
+                          errorMessage = 'Server error. Silakan coba lagi nanti.';
+                        } else {
+                          errorMessage = 'Error: ${e.toString()}';
+                        }
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errorMessage),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isLoading = false;
+                        });
+                      }
+                    }
                   },
                   child: const Text(
                     'Yes',
@@ -220,9 +276,9 @@ class _PresensiScreenState extends State<PresensiScreen> {
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              _buildInfoRow('Nama', 'Dheva'),
+                              _buildInfoRow('Nama', '-'),
                               const SizedBox(height: 16),
-                              _buildInfoRow('Tanggal', '13/09/2025'),
+                              _buildInfoRow('Tanggal', DateFormat('dd/MM/yyyy').format(DateTime.now())),
                               const SizedBox(height: 16),
                               Row(
                                 children: [
@@ -280,7 +336,7 @@ class _PresensiScreenState extends State<PresensiScreen> {
                                     padding: const EdgeInsets.symmetric(vertical: 16),
                                     elevation: 0,
                                   ),
-                                  onPressed: () => _showConfirmDialog('Masuk'),
+                                  onPressed: _isLoading ? null : () => _showConfirmDialog('Masuk'),
                                   child: const Text(
                                     'Masuk',
                                     style: TextStyle(
@@ -308,7 +364,7 @@ class _PresensiScreenState extends State<PresensiScreen> {
                                     padding: const EdgeInsets.symmetric(vertical: 16),
                                     elevation: 0,
                                   ),
-                                  onPressed: () => _showConfirmDialog('Pulang'),
+                                  onPressed: _isLoading ? null : () => _showConfirmDialog('Pulang'),
                                   child: const Text(
                                     'Pulang',
                                     style: TextStyle(
@@ -331,7 +387,7 @@ class _PresensiScreenState extends State<PresensiScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
+      bottomNavigationBar: buildMainBottomNav(context, currentIndex: 1),
     );
   }
 
@@ -350,62 +406,4 @@ class _PresensiScreenState extends State<PresensiScreen> {
     );
   }
 
-  Widget _buildBottomNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: 1, // Presensi is active
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).pushReplacement(
-              SlidePageRoute(page: const HomeScreen()),
-            );
-          } else if (index == 3) {
-            Navigator.of(context).push(
-              SlidePageRoute(page: const RiwayatKegiatanScreen()),
-            );
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF6A5AE0),
-        unselectedItemColor: Colors.grey[600],
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        iconSize: 24,
-        elevation: 0,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.checklist_rounded),
-            label: 'Presensi',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description_rounded),
-            label: 'Laporan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_rounded),
-            label: 'Kegiatan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message_rounded),
-            label: 'Pesan',
-          ),
-        ],
-      ),
-    );
-  }
 }

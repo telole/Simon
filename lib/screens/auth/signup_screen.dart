@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:kons/signup_success.dart';
-import 'package:kons/Login.dart';
-import 'package:kons/page_transitions.dart';
+import 'package:kons/screens/auth/signup_success_screen.dart';
+import 'package:kons/screens/auth/login_screen.dart';
+import 'package:kons/core/navigation/page_transitions.dart';
+import 'package:kons/core/services/auth_service.dart';
+import 'package:kons/screens/home/home_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -16,6 +18,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -197,25 +200,82 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                               ),
-                              onPressed: () {
+                              onPressed: _isLoading ? null : () async {
                                 if (_formKey.currentState!.validate()) {
-                                  // Show success modal
-                                  showDialog(
-                                    context: context,
-                                    barrierDismissible: false,
-                                    barrierColor: Colors.black.withOpacity(0.5),
-                                    builder: (context) => const SignUpSuccessModal(),
-                                  );
+                                  setState(() {
+                                    _isLoading = true;
+                                  });
+                                  
+                                  try {
+                                    final result = await AuthService.signup(
+                                      _emailController.text.trim(),
+                                      _passwordController.text,
+                                      username: _usernameController.text.trim(),
+                                    );
+                                    
+                                    if (mounted) {
+                                      // Check if email confirmation is required
+                                      if (result['requires_confirmation'] == true) {
+                                        // Show success modal with email confirmation message
+                                        showDialog(
+                                          context: context,
+                                          barrierDismissible: false,
+                                          barrierColor: Colors.black.withOpacity(0.5),
+                                          builder: (context) => SignUpSuccessModal(
+                                            message: 'Silakan cek email Anda untuk konfirmasi akun sebelum login.',
+                                          ),
+                                        );
+                                      } else if (result['access_token'] != null) {
+                                        // Auto login if token is available
+                                        Navigator.of(context).pushAndRemoveUntil(
+                                          SlidePageRoute(page: const HomeScreen()),
+                                          (route) => false,
+                                        );
+                                      } else {
+                                        // Show success modal
+                                        showDialog(
+                                          context: context,
+                                          barrierDismissible: false,
+                                          barrierColor: Colors.black.withOpacity(0.5),
+                                          builder: (context) => const SignUpSuccessModal(),
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Gagal mendaftar: ${e.toString()}'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isLoading = false;
+                                      });
+                                    }
+                                  }
                                 }
                               },
-                              child: const Text(
-                                'Sign up',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Sign up',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                           ),
                           const SizedBox(height: 20),

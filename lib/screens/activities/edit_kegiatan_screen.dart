@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:kons/riwayat_kegiatan.dart';
-import 'package:kons/success_popup.dart';
-import 'package:kons/page_transitions.dart';
+import 'package:kons/screens/activities/riwayat_kegiatan_screen.dart';
+import 'package:kons/core/widgets/success_popup.dart';
+import 'package:kons/core/navigation/page_transitions.dart';
+import 'package:kons/core/services/api_service.dart';
+import 'package:kons/core/models/activity.dart';
 
 class EditKegiatanScreen extends StatefulWidget {
-  final Map<String, dynamic> kegiatan;
+  final Activity kegiatan;
   
   const EditKegiatanScreen({super.key, required this.kegiatan});
 
@@ -14,43 +16,84 @@ class EditKegiatanScreen extends StatefulWidget {
 
 class _EditKegiatanScreenState extends State<EditKegiatanScreen> {
   final _formKey = GlobalKey<FormState>();
+  final ApiService _apiService = ApiService();
   late TextEditingController _tanggalController;
-  late TextEditingController _jamController;
+  late TextEditingController _jamMulaiController;
+  late TextEditingController _jamSelesaiController;
   late TextEditingController _kegiatanController;
+  late TextEditingController _catatanController;
   late String _selectedKegiatan;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _tanggalController = TextEditingController(text: widget.kegiatan['tanggal']);
-    _jamController = TextEditingController(text: widget.kegiatan['jam']);
-    _selectedKegiatan = widget.kegiatan['kegiatan'];
-    _kegiatanController = TextEditingController(text: widget.kegiatan['kegiatan']);
+    _tanggalController = TextEditingController(text: widget.kegiatan.tanggal);
+    _jamMulaiController = TextEditingController(text: widget.kegiatan.jamMulai.length > 5 ? widget.kegiatan.jamMulai.substring(0, 5) : widget.kegiatan.jamMulai);
+    _jamSelesaiController = TextEditingController(text: widget.kegiatan.jamSelesai.length > 5 ? widget.kegiatan.jamSelesai.substring(0, 5) : widget.kegiatan.jamSelesai);
+    _selectedKegiatan = widget.kegiatan.kegiatan;
+    _kegiatanController = TextEditingController(text: widget.kegiatan.kegiatan);
+    _catatanController = TextEditingController(text: widget.kegiatan.catatan ?? '');
   }
 
   @override
   void dispose() {
     _tanggalController.dispose();
-    _jamController.dispose();
+    _jamMulaiController.dispose();
+    _jamSelesaiController.dispose();
     _kegiatanController.dispose();
+    _catatanController.dispose();
     super.dispose();
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => SuccessPopup(
-        title: 'Kegiatan berhasil Di edit',
-        onContinue: () {
-          Navigator.of(context).pop();
-          Navigator.of(context).pushReplacement(
-            SlidePageRoute(page: const RiwayatKegiatanScreen()),
-          );
-        },
-      ),
-    );
+  Future<void> _submitUpdate() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _apiService.updateActivity(widget.kegiatan.id, {
+        'tanggal': _tanggalController.text.trim(),
+        'jam_mulai': _jamMulaiController.text.trim(),
+        'jam_selesai': _jamSelesaiController.text.trim(),
+        'kegiatan': _kegiatanController.text.trim(),
+        'catatan': _catatanController.text.trim().isEmpty ? null : _catatanController.text.trim(),
+      });
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black.withOpacity(0.5),
+          builder: (context) => SuccessPopup(
+            title: 'Kegiatan berhasil Di edit',
+            onContinue: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushReplacement(
+                SlidePageRoute(page: const RiwayatKegiatanScreen()),
+              );
+            },
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengupdate kegiatan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -169,24 +212,63 @@ class _EditKegiatanScreenState extends State<EditKegiatanScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   
-                                  // Jam Field
+                                  // Jam Mulai Field
                                   TextFormField(
-                                    controller: _jamController,
+                                    controller: _jamMulaiController,
                                     decoration: InputDecoration(
-                                      labelText: 'Jam',
+                                      labelText: 'Jam Mulai (HH:mm)',
                                       prefixIcon: const Icon(Icons.access_time),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       filled: true,
                                       fillColor: Colors.grey[50],
+                                      hintText: '08:00',
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Please enter jam';
+                                        return 'Please enter jam mulai';
                                       }
                                       return null;
                                     },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Jam Selesai Field
+                                  TextFormField(
+                                    controller: _jamSelesaiController,
+                                      decoration: InputDecoration(
+                                      labelText: 'Jam Selesai (HH:mm)',
+                                      prefixIcon: const Icon(Icons.access_time),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[50],
+                                      hintText: '16:00',
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter jam selesai';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Catatan Field
+                                  TextFormField(
+                                    controller: _catatanController,
+                                    maxLines: 3,
+                                    decoration: InputDecoration(
+                                      labelText: 'Catatan (Optional)',
+                                      prefixIcon: const Icon(Icons.note),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[50],
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
                                   
@@ -258,12 +340,17 @@ class _EditKegiatanScreenState extends State<EditKegiatanScreen> {
                                         ),
                                         padding: const EdgeInsets.symmetric(vertical: 16),
                                       ),
-                                      onPressed: () {
-                                        if (_formKey.currentState!.validate()) {
-                                          _showSuccessDialog();
-                                        }
-                                      },
-                                      child: const Text(
+                                      onPressed: _isLoading ? null : _submitUpdate,
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              height: 20,
+                                              width: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : const Text(
                                         'Edit',
                                         style: TextStyle(
                                           color: Colors.white,
