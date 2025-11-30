@@ -7,8 +7,8 @@ class AuthService {
   static const String _supabaseUrlKey = 'supabase_url';
   static const String _supabaseAnonKeyKey = 'supabase_anon_key';
   
-  static const String defaultSupabaseUrl = '';
-  static const String defaultSupabaseAnonKey = '';
+  static const String defaultSupabaseUrl = 'https://uqcvuqgxiczpgemskaix.supabase.co';
+  static const String defaultSupabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxY3Z1cWd4aWN6cGdlbXNrYWl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1NTMxMDYsImV4cCI6MjA3OTEyOTEwNn0.yyKbkrmOG98a9-lelbKOQ3j-azDR7ZRPAJFogWsfN5I';
 
   // Get Supabase URL
   static Future<String> getSupabaseUrl() async {
